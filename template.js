@@ -1,11 +1,11 @@
 const sendHttpRequest = require('sendHttpRequest');
 const encodeUri = require('encodeUri');
 const JSON = require('JSON');
+const templateDataStorage = require('templateDataStorage');
+const Promise = require('Promise');
+const sha256Sync = require('sha256Sync');
 
-const url = getUrl();
-const options = getOptions();
-
-return sendHttpRequest(url, options).then(getResult);
+return getResponseBody().then(mapResponse);
 
 function getUrl() {
   const url = data.projectUrl + '/rest/v1/' + encodeUri(data.tableName);
@@ -22,8 +22,8 @@ function getOptions() {
   return { headers: headers, method: 'GET' };
 }
 
-function getResult(response) {
-  const body = JSON.parse(response.body);
+function mapResponse(bodyString) {
+  const body = JSON.parse(bodyString);
   if (!data.documentPath) return body;
   const keys = data.documentPath.trim().split('.');
   let value = body;
@@ -33,4 +33,18 @@ function getResult(response) {
     value = value[key];
   }
   return value;
+}
+
+function getResponseBody() {
+  const url = getUrl();
+  const options = getOptions();
+  const cacheKey = data.storeResponse ? sha256Sync(url + JSON.stringify(options)) : '';
+  if (data.storeResponse) {
+    const cachedValue = templateDataStorage.getItemCopy(cacheKey);
+    if (cachedValue) return Promise.create((resolve) => resolve(cachedValue));
+  }
+  return sendHttpRequest(url, options).then((response) => {
+    if (data.storeResponse) templateDataStorage.setItemCopy(cacheKey, response.body);
+    return response.body;
+  });
 }
