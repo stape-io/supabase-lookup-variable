@@ -14,7 +14,7 @@ ___INFO___
   "version": 1,
   "securityGroups": [],
   "displayName": "Supabase Lookup",
-  "description": "",
+  "description": "Supabase Lookup variable for GTM: Fetch, track, and analyze Supabase data in GTM effortlessly.",
   "containerContexts": [
     "SERVER"
   ]
@@ -161,6 +161,6 @@ scenarios: []
 
 ___NOTES___
 
-Created on 18/10/2023, 20:06:16
+Created on 19/10/2023, 13:07:24
 
 
