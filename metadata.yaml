@@ -1,4 +1,6 @@
 homepage: "https://stape.io/"
 versions:
+  - sha: 78759a35ff7237d8ed85667834a0b26819e69d83
+    changeNotes: Added ability to store response.
   - sha: 434eedd60550733edf489aab680e507ea7b00673
     changeNotes: Initial release.
