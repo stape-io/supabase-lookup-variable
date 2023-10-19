@@ -65,24 +65,39 @@ ___TEMPLATE_PARAMETERS___
     "help": "Allows for extracting values from response body. For example, using \u003cb\u003e0.email\u003c/b\u003e will return the email field from the first object in the response."
   },
   {
-    "type": "SIMPLE_TABLE",
-    "name": "queryConditions",
-    "displayName": "Query Conditions",
-    "simpleTableColumns": [
+    "type": "CHECKBOX",
+    "name": "storeResponse",
+    "checkboxText": "Store the result in cache",
+    "simpleValueType": true,
+    "help": "Store the result in Template Storage. If all parameters of the query are the same resul will be taken from the cache if it exists."
+  },
+  {
+    "type": "GROUP",
+    "name": "queryGroup",
+    "displayName": "Query conditions",
+    "groupStyle": "ZIPPY_CLOSED",
+    "subParams": [
       {
-        "defaultValue": "",
-        "displayName": "Key",
-        "name": "key",
-        "type": "TEXT"
-      },
-      {
-        "defaultValue": "",
-        "displayName": "Value",
-        "name": "value",
-        "type": "TEXT"
+        "type": "SIMPLE_TABLE",
+        "name": "queryConditions",
+        "simpleTableColumns": [
+          {
+            "defaultValue": "",
+            "displayName": "Key",
+            "name": "key",
+            "type": "TEXT",
+            "isUnique": true
+          },
+          {
+            "defaultValue": "",
+            "displayName": "Value",
+            "name": "value",
+            "type": "TEXT"
+          }
+        ],
+        "help": "\u003ca href\u003d\"https://postgrest.org/en/stable/references/api/tables_views.html#horizontal-filtering\"\u003eRead more\u003c/a\u003e"
       }
-    ],
-    "help": "\u003ca href\u003d\"https://postgrest.org/en/stable/references/api/tables_views.html#horizontal-filtering\"\u003eRead more\u003c/a\u003e"
+    ]
   }
 ]
 
@@ -92,11 +107,11 @@ ___SANDBOXED_JS_FOR_SERVER___
 const sendHttpRequest = require('sendHttpRequest');
 const encodeUri = require('encodeUri');
 const JSON = require('JSON');
+const templateDataStorage = require('templateDataStorage');
+const Promise = require('Promise');
+const sha256Sync = require('sha256Sync');
 
-const url = getUrl();
-const options = getOptions();
-
-return sendHttpRequest(url, options).then(getResult);
+return getResponseBody().then(mapResponse);
 
 function getUrl() {
   const url = data.projectUrl + '/rest/v1/' + encodeUri(data.tableName);
@@ -113,8 +128,8 @@ function getOptions() {
   return { headers: headers, method: 'GET' };
 }
 
-function getResult(response) {
-  const body = JSON.parse(response.body);
+function mapResponse(bodyString) {
+  const body = JSON.parse(bodyString);
   if (!data.documentPath) return body;
   const keys = data.documentPath.trim().split('.');
   let value = body;
@@ -124,6 +139,20 @@ function getResult(response) {
     value = value[key];
   }
   return value;
+}
+
+function getResponseBody() {
+  const url = getUrl();
+  const options = getOptions();
+  const cacheKey = data.storeResponse ? sha256Sync(url + JSON.stringify(options)) : '';
+  if (data.storeResponse) {
+    const cachedValue = templateDataStorage.getItemCopy(cacheKey);
+    if (cachedValue) return Promise.create((resolve) => resolve(cachedValue));
+  }
+  return sendHttpRequest(url, options).then((response) => {
+    if (data.storeResponse) templateDataStorage.setItemCopy(cacheKey, response.body);
+    return response.body;
+  });
 }
 
 
@@ -150,6 +179,16 @@ ___SERVER_PERMISSIONS___
       "isEditedByUser": true
     },
     "isRequired": true
+  },
+  {
+    "instance": {
+      "key": {
+        "publicId": "access_template_storage",
+        "versionId": "1"
+      },
+      "param": []
+    },
+    "isRequired": true
   }
 ]
 
@@ -161,6 +200,6 @@ scenarios: []
 
 ___NOTES___
 
-Created on 19/10/2023, 13:07:24
+Created on 19/10/2023, 14:06:55
 
 
