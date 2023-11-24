@@ -98,6 +98,34 @@ ___TEMPLATE_PARAMETERS___
         "help": "\u003ca href\u003d\"https://postgrest.org/en/stable/references/api/tables_views.html#horizontal-filtering\"\u003eRead more\u003c/a\u003e"
       }
     ]
+  },
+  {
+    "displayName": "Logs Settings",
+    "name": "logsGroup",
+    "groupStyle": "ZIPPY_CLOSED",
+    "type": "GROUP",
+    "subParams": [
+      {
+        "type": "RADIO",
+        "name": "logType",
+        "radioItems": [
+          {
+            "value": "no",
+            "displayValue": "Do not log"
+          },
+          {
+            "value": "debug",
+            "displayValue": "Log to console during debug and preview"
+          },
+          {
+            "value": "always",
+            "displayValue": "Always log to console"
+          }
+        ],
+        "simpleValueType": true,
+        "defaultValue": "debug"
+      }
+    ]
   }
 ]
 
@@ -110,6 +138,12 @@ const JSON = require('JSON');
 const templateDataStorage = require('templateDataStorage');
 const Promise = require('Promise');
 const sha256Sync = require('sha256Sync');
+const logToConsole = require('logToConsole');
+const getRequestHeader = require('getRequestHeader');
+const getContainerVersion = require('getContainerVersion');
+
+const isLoggingEnabled = determinateIsLoggingEnabled();
+const traceId = isLoggingEnabled ? getRequestHeader('trace-id') : undefined;
 
 return getResponseBody().then(mapResponse);
 
@@ -149,10 +183,51 @@ function getResponseBody() {
     const cachedValue = templateDataStorage.getItemCopy(cacheKey);
     if (cachedValue) return Promise.create((resolve) => resolve(cachedValue));
   }
+  if (isLoggingEnabled) {
+    logToConsole(
+      JSON.stringify({
+        Name: 'Supabase Lookup',
+        Type: 'Response',
+        TraceId: traceId,
+        EventName: 'CreateOrUpdateContact',
+      })
+    );
+  }
   return sendHttpRequest(url, options).then((response) => {
+    if (isLoggingEnabled) {
+      logToConsole(
+        JSON.stringify({
+          Name: 'Supabase Lookup',
+          Type: 'Response',
+          TraceId: traceId,
+          EventName: 'CreateOrUpdateContact',
+          ResponseStatusCode: url.statusCode,
+          ResponseHeaders: response.headers,
+          ResponseBody: response.body,
+        })
+      );
+    }
     if (data.storeResponse) templateDataStorage.setItemCopy(cacheKey, response.body);
     return response.body;
   });
+}
+function determinateIsLoggingEnabled() {
+  const containerVersion = getContainerVersion();
+  const isDebug = !!(containerVersion && (containerVersion.debugMode || containerVersion.previewMode));
+
+  if (!data.logType) {
+    return isDebug;
+  }
+
+  if (data.logType === 'no') {
+    return false;
+  }
+
+  if (data.logType === 'debug') {
+    return isDebug;
+  }
+
+  return data.logType === 'always';
 }
 
 
@@ -184,6 +259,66 @@ ___SERVER_PERMISSIONS___
     "instance": {
       "key": {
         "publicId": "access_template_storage",
+        "versionId": "1"
+      },
+      "param": []
+    },
+    "isRequired": true
+  },
+  {
+    "instance": {
+      "key": {
+        "publicId": "read_request",
+        "versionId": "1"
+      },
+      "param": [
+        {
+          "key": "requestAccess",
+          "value": {
+            "type": 1,
+            "string": "specific"
+          }
+        },
+        {
+          "key": "headerAccess",
+          "value": {
+            "type": 1,
+            "string": "any"
+          }
+        },
+        {
+          "key": "queryParameterAccess",
+          "value": {
+            "type": 1,
+            "string": "any"
+          }
+        }
+      ]
+    },
+    "isRequired": true
+  },
+  {
+    "instance": {
+      "key": {
+        "publicId": "logging",
+        "versionId": "1"
+      },
+      "param": [
+        {
+          "key": "environments",
+          "value": {
+            "type": 1,
+            "string": "debug"
+          }
+        }
+      ]
+    },
+    "isRequired": true
+  },
+  {
+    "instance": {
+      "key": {
+        "publicId": "read_container_data",
         "versionId": "1"
       },
       "param": []
