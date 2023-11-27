@@ -186,10 +186,12 @@ function getResponseBody() {
   if (isLoggingEnabled) {
     logToConsole(
       JSON.stringify({
-        Name: 'Supabase Lookup',
-        Type: 'Response',
+        Name: 'SupabaseLookup',
+        Type: 'Request',
         TraceId: traceId,
-        EventName: 'CreateOrUpdateContact',
+        EventName: 'purchase',
+        RequestMethod: 'POST',
+        RequestBody: data,
       })
     );
   }
@@ -197,7 +199,7 @@ function getResponseBody() {
     if (isLoggingEnabled) {
       logToConsole(
         JSON.stringify({
-          Name: 'Supabase Lookup',
+          Name: 'SupabaseLookup',
           Type: 'Response',
           TraceId: traceId,
           EventName: 'CreateOrUpdateContact',
