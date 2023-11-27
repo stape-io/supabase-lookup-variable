@@ -56,8 +56,10 @@ function getResponseBody() {
         Type: 'Request',
         TraceId: traceId,
         EventName: 'purchase',
-        RequestMethod: 'POST',
-        RequestBody: data,
+        //TODO change event name
+        RequestMethod: options.method,
+        RequestUrl: options.url,
+        RequestBody: options,
       })
     );
   }
@@ -69,7 +71,7 @@ function getResponseBody() {
           Type: 'Response',
           TraceId: traceId,
           EventName: 'CreateOrUpdateContact',
-          ResponseStatusCode: url.statusCode,
+          ResponseStatusCode: response.statusCode,
           ResponseHeaders: response.headers,
           ResponseBody: response.body,
         })

@@ -190,8 +190,10 @@ function getResponseBody() {
         Type: 'Request',
         TraceId: traceId,
         EventName: 'purchase',
-        RequestMethod: 'POST',
-        RequestBody: data,
+        //TODO change event name
+        RequestMethod: options.method,
+        RequestUrl: options.url,
+        RequestBody: options,
       })
     );
   }
@@ -203,7 +205,7 @@ function getResponseBody() {
           Type: 'Response',
           TraceId: traceId,
           EventName: 'CreateOrUpdateContact',
-          ResponseStatusCode: url.statusCode,
+          ResponseStatusCode: response.statusCode,
           ResponseHeaders: response.headers,
           ResponseBody: response.body,
         })
@@ -343,10 +345,13 @@ ___SERVER_PERMISSIONS___
           "key": "environments",
           "value": {
             "type": 1,
-            "string": "debug"
+            "string": "all"
           }
         }
       ]
+    },
+    "clientAnnotations": {
+      "isEditedByUser": true
     },
     "isRequired": true
   },
