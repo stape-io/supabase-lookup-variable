@@ -189,8 +189,7 @@ function getResponseBody() {
         Name: 'SupabaseLookup',
         Type: 'Request',
         TraceId: traceId,
-        EventName: 'purchase',
-        //TODO change event name
+        EventName: 'StoreRead',
         RequestMethod: options.method,
         RequestUrl: options.url,
         RequestBody: options,
@@ -204,7 +203,7 @@ function getResponseBody() {
           Name: 'SupabaseLookup',
           Type: 'Response',
           TraceId: traceId,
-          EventName: 'CreateOrUpdateContact',
+          EventName: 'StoreRead',
           ResponseStatusCode: response.statusCode,
           ResponseHeaders: response.headers,
           ResponseBody: response.body,
