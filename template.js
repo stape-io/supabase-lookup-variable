@@ -4,6 +4,12 @@ const JSON = require('JSON');
 const templateDataStorage = require('templateDataStorage');
 const Promise = require('Promise');
 const sha256Sync = require('sha256Sync');
+const logToConsole = require('logToConsole');
+const getRequestHeader = require('getRequestHeader');
+const getContainerVersion = require('getContainerVersion');
+
+const isLoggingEnabled = determinateIsLoggingEnabled();
+const traceId = isLoggingEnabled ? getRequestHeader('trace-id') : undefined;
 
 return getResponseBody().then(mapResponse);
 
@@ -43,8 +49,52 @@ function getResponseBody() {
     const cachedValue = templateDataStorage.getItemCopy(cacheKey);
     if (cachedValue) return Promise.create((resolve) => resolve(cachedValue));
   }
+  if (isLoggingEnabled) {
+    logToConsole(
+      JSON.stringify({
+        Name: 'SupabaseLookup',
+        Type: 'Request',
+        TraceId: traceId,
+        EventName: 'StoreRead',
+        RequestMethod: options.method,
+        RequestUrl: options.url,
+        RequestBody: options,
+      })
+    );
+  }
   return sendHttpRequest(url, options).then((response) => {
+    if (isLoggingEnabled) {
+      logToConsole(
+        JSON.stringify({
+          Name: 'SupabaseLookup',
+          Type: 'Response',
+          TraceId: traceId,
+          EventName: 'StoreRead',
+          ResponseStatusCode: response.statusCode,
+          ResponseHeaders: response.headers,
+          ResponseBody: response.body,
+        })
+      );
+    }
     if (data.storeResponse) templateDataStorage.setItemCopy(cacheKey, response.body);
     return response.body;
   });
+}
+function determinateIsLoggingEnabled() {
+  const containerVersion = getContainerVersion();
+  const isDebug = !!(containerVersion && (containerVersion.debugMode || containerVersion.previewMode));
+
+  if (!data.logType) {
+    return isDebug;
+  }
+
+  if (data.logType === 'no') {
+    return false;
+  }
+
+  if (data.logType === 'debug') {
+    return isDebug;
+  }
+
+  return data.logType === 'always';
 }

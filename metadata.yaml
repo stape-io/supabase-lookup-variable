@@ -4,3 +4,5 @@ versions:
     changeNotes: Added ability to store response.
   - sha: 434eedd60550733edf489aab680e507ea7b00673
     changeNotes: Initial release.
+  - sha: a606fb66b83ad05d9f970f943237dff94d7e6f1f
+    changeNotes: Added log settings.
