@@ -1,12 +1,4 @@
-___TERMS_OF_SERVICE___
-
-By creating or modifying this file you agree to Google Tag Manager's Community
-Template Gallery Developer Terms of Service available at
-https://developers.google.com/tag-manager/gallery-tos (or such other URL as
-Google may provide), as modified from time to time.
-
-
-___INFO___
+﻿___INFO___
 
 {
   "type": "MACRO",
@@ -132,24 +124,38 @@ ___TEMPLATE_PARAMETERS___
 
 ___SANDBOXED_JS_FOR_SERVER___
 
-const sendHttpRequest = require('sendHttpRequest');
-const encodeUri = require('encodeUri');
-const JSON = require('JSON');
-const templateDataStorage = require('templateDataStorage');
-const Promise = require('Promise');
-const sha256Sync = require('sha256Sync');
-const logToConsole = require('logToConsole');
-const getRequestHeader = require('getRequestHeader');
+const createRegex = require('createRegex');
+const encodeUriComponent = require('encodeUriComponent');
+const getAllEventData = require('getAllEventData');
 const getContainerVersion = require('getContainerVersion');
+const getRequestHeader = require('getRequestHeader');
+const getType = require('getType');
+const JSON = require('JSON');
+const logToConsole = require('logToConsole');
+const makeString = require('makeString');
+const Promise = require('Promise');
+const sendHttpRequest = require('sendHttpRequest');
+const sha256Sync = require('sha256Sync');
+const templateDataStorage = require('templateDataStorage');
 
-const isLoggingEnabled = determinateIsLoggingEnabled();
-const traceId = isLoggingEnabled ? getRequestHeader('trace-id') : undefined;
+/*==============================================================================
+==============================================================================*/
 
-return getResponseBody().then(mapResponse);
+const eventData = getAllEventData();
+
+if (shouldExitEarly(eventData)) return;
+
+return lookupSupabase().then(mapResponse);
+
+/*==============================================================================
+Vendor related functions
+==============================================================================*/
 
 function getUrl() {
-  const url = data.projectUrl + '/rest/v1/' + encodeUri(data.tableName);
-  const params = (data.queryConditions || []).map((item) => item.key + '=' + item.value).join('&');
+  if (!data.projectUrl) return undefined;
+  const baseUrl = data.projectUrl.replace(createRegex('/$'), '');
+  const url = baseUrl + '/rest/v1/' + enc(data.tableName);
+  const params = (data.queryConditions || []).map((item) => enc(item.key) + '=' + enc(item.value)).join('&');
   return params ? url + '?' + params : url;
 }
 
@@ -157,12 +163,62 @@ function getOptions() {
   const headers = {
     'Content-Type': 'application/json',
     apikey: data.apiKey,
-    Authorization: 'Bearer ' + data.apiKey,
+    Authorization: 'Bearer ' + data.apiKey
   };
   return { headers: headers, method: 'GET' };
 }
 
+function lookupSupabase() {
+  const url = getUrl();
+  if (!url) return Promise.create((resolve) => resolve('{}'));
+
+  const options = getOptions();
+  const cacheKey = data.storeResponse ? sha256Sync(url + JSON.stringify(options)) : '';
+  if (data.storeResponse) {
+    const cachedValue = templateDataStorage.getItemCopy(cacheKey);
+    if (!!cachedValue) return Promise.create((resolve) => resolve(cachedValue));
+  }
+
+  log({
+    Name: 'SupabaseLookup',
+    Type: 'Request',
+    EventName: 'StoreRead',
+    RequestMethod: options.method,
+    RequestUrl: url,
+    RequestBody: options
+  });
+
+  return sendHttpRequest(url, options)
+    .then((response) => {
+      log({
+        Name: 'SupabaseLookup',
+        Type: 'Response',
+        EventName: 'StoreRead',
+        ResponseStatusCode: response.statusCode,
+        ResponseHeaders: response.headers,
+        ResponseBody: response.body
+      });
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        if (data.storeResponse) templateDataStorage.setItemCopy(cacheKey, response.body);
+        return response.body;
+      }
+      return undefined;
+    })
+    .catch((error) => {
+      log({
+        Name: 'SupabaseLookup',
+        Type: 'Message',
+        EventName: 'StoreRead',
+        Message: 'The request failed or timed out.',
+        Reason: JSON.stringify(error)
+      });
+      return undefined;
+    });
+}
+
 function mapResponse(bodyString) {
+  if (!bodyString) return undefined;
   const body = JSON.parse(bodyString);
   if (!data.documentPath) return body;
   const keys = data.documentPath.trim().split('.');
@@ -175,45 +231,41 @@ function mapResponse(bodyString) {
   return value;
 }
 
-function getResponseBody() {
-  const url = getUrl();
-  const options = getOptions();
-  const cacheKey = data.storeResponse ? sha256Sync(url + JSON.stringify(options)) : '';
-  if (data.storeResponse) {
-    const cachedValue = templateDataStorage.getItemCopy(cacheKey);
-    if (cachedValue) return Promise.create((resolve) => resolve(cachedValue));
-  }
-  if (isLoggingEnabled) {
-    logToConsole(
-      JSON.stringify({
-        Name: 'SupabaseLookup',
-        Type: 'Request',
-        TraceId: traceId,
-        EventName: 'StoreRead',
-        RequestMethod: options.method,
-        RequestUrl: options.url,
-        RequestBody: options,
-      })
-    );
-  }
-  return sendHttpRequest(url, options).then((response) => {
-    if (isLoggingEnabled) {
-      logToConsole(
-        JSON.stringify({
-          Name: 'SupabaseLookup',
-          Type: 'Response',
-          TraceId: traceId,
-          EventName: 'StoreRead',
-          ResponseStatusCode: response.statusCode,
-          ResponseHeaders: response.headers,
-          ResponseBody: response.body,
-        })
-      );
-    }
-    if (data.storeResponse) templateDataStorage.setItemCopy(cacheKey, response.body);
-    return response.body;
-  });
+/*==============================================================================
+Helpers
+==============================================================================*/
+
+function shouldExitEarly(eventData) {
+  const url = eventData.page_location || getRequestHeader('referer');
+  if (url && url.lastIndexOf('https://gtm-msr.appspot.com/', 0) === 0) return true;
+  return false;
 }
+
+function enc(data) {
+  if (['null', 'undefined'].indexOf(getType(data)) !== -1) data = '';
+  return encodeUriComponent(makeString(data));
+}
+
+function log(rawDataToLog) {
+  const logDestinationsHandlers = {};
+  if (determinateIsLoggingEnabled()) logDestinationsHandlers.console = logConsole;
+
+  rawDataToLog.TraceId = getRequestHeader('trace-id');
+
+  for (const logDestination in logDestinationsHandlers) {
+    const handler = logDestinationsHandlers[logDestination];
+    if (!handler) continue;
+
+    const dataToLog = rawDataToLog;
+
+    handler(dataToLog);
+  }
+}
+
+function logConsole(dataToLog) {
+  logToConsole(JSON.stringify(dataToLog));
+}
+
 function determinateIsLoggingEnabled() {
   const containerVersion = getContainerVersion();
   const isDebug = !!(containerVersion && (containerVersion.debugMode || containerVersion.previewMode));
@@ -294,6 +346,21 @@ ___SERVER_PERMISSIONS___
                     "string": "trace-id"
                   }
                 ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "headerName"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "referer"
+                  }
+                ]
               }
             ]
           }
@@ -363,13 +430,134 @@ ___SERVER_PERMISSIONS___
       "param": []
     },
     "isRequired": true
+  },
+  {
+    "instance": {
+      "key": {
+        "publicId": "read_event_data",
+        "versionId": "1"
+      },
+      "param": [
+        {
+          "key": "eventDataAccess",
+          "value": {
+            "type": 1,
+            "string": "any"
+          }
+        }
+      ]
+    },
+    "clientAnnotations": {
+      "isEditedByUser": true
+    },
+    "isRequired": true
   }
 ]
 
 
 ___TESTS___
 
-scenarios: []
+scenarios:
+- name: '[URL Construction] Strips trailing slash and appends query params'
+  code: |-
+    const mockData = {
+      projectUrl: 'https://my-project.supabase.co/', // Trailing slash included
+      apiKey: 'mock-api-key',
+      tableName: 'orders',
+      queryConditions: [
+        { key: 'status', value: 'eq.completed' },
+        { key: 'total', value: 'gt.100' }
+      ]
+    };
+
+    let requestedUrl = '';
+    mock('sendHttpRequest', (url, options) => {
+      requestedUrl = url;
+      return Promise.create((resolve) => resolve({ statusCode: 200, body: '[]' }));
+    });
+
+    runCode(mockData).then(() => {
+      assertThat(requestedUrl).isEqualTo('https://my-project.supabase.co/rest/v1/orders?status=eq.completed&total=gt.100');
+    });
+- name: '[Success] Successfully parses JSON and extracts document path'
+  code: |-
+    const mockData = {
+      projectUrl: 'https://my-project.supabase.co',
+      apiKey: 'mock-api-key',
+      tableName: 'users',
+      documentPath: '0.name', // Extract 'name' from the first object
+      storeResponse: false
+    };
+
+    mock('sendHttpRequest', (url, options) => {
+      return Promise.create((resolve) => resolve({
+        statusCode: 200,
+        body: JSON.stringify([{ id: 1, name: 'Alice' }, { id: 2, name: 'Bob' }])
+      }));
+    });
+
+    runCode(mockData).then((result) => {
+      assertThat(result).isEqualTo('Alice');
+    });
+- name: '[Failure] Silently returns undefined if API returns invalid JSON'
+  code: |-
+    const mockData = {
+      projectUrl: 'https://my-project.supabase.co',
+      apiKey: 'mock-api-key',
+      tableName: 'users',
+      documentPath: '0.name'
+    };
+
+    mock('sendHttpRequest', () => {
+      return Promise.create((resolve) => resolve({
+        statusCode: 502,
+        body: '<html>Bad Gateway</html>' // Not valid JSON
+      }));
+    });
+
+    runCode(mockData).then((result) => {
+      assertThat(result).isUndefined();
+    });
+- name: '[Guard Clause] Exits early if referer is GTM domain'
+  code: |
+    const mockData = {
+      projectUrl: 'https://my-project.supabase.co',
+      apiKey: 'mock-api-key',
+      tableName: 'users'
+    };
+
+    mock('getRequestHeader', (header) => {
+      if (header === 'referer') return 'https://gtm-msr.appspot.com/render';
+      return undefined;
+    });
+
+    const result = runCode(mockData);
+
+    assertApi('sendHttpRequest').wasNotCalled();
+    assertThat(result).isUndefined();
+setup: |-
+  const JSON = require('JSON');
+  const Promise = require('Promise');
+
+  mock('getAllEventData', () => ({}));
+
+  mock('getRequestHeader', (header) => {
+    if (header === 'trace-id') return 'trace-123';
+    return undefined;
+  });
+
+  mock('getContainerVersion', () => ({ debugMode: true }));
+  mock('logToConsole', () => {});
+  mock('getTimestampMillis', () => 1000000);
+
+  mockObject('templateDataStorage', {
+    getItemCopy: () => null,
+    setItemCopy: () => {}
+  });
+
+  mock('sendHttpRequest', () => {
+    return Promise.create((resolve) => resolve({ statusCode: 200, body: '{}' }));
+  });
 
 
 ___NOTES___
