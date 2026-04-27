@@ -1,0 +1,102 @@
+setup: |-
+  const JSON = require('JSON');
+  const Promise = require('Promise');
+
+  mock('getAllEventData', () => ({}));
+
+  mock('getRequestHeader', (header) => {
+    if (header === 'trace-id') return 'trace-123';
+    return undefined;
+  });
+
+  mock('getContainerVersion', () => ({ debugMode: true }));
+  mock('logToConsole', () => {});
+  mock('getTimestampMillis', () => 1000000);
+
+  mockObject('templateDataStorage', {
+    getItemCopy: () => null,
+    setItemCopy: () => {}
+  });
+
+  mock('sendHttpRequest', () => {
+    return Promise.create((resolve) => resolve({ statusCode: 200, body: '{}' }));
+  });
+
+scenarios:
+  - name: '[URL Construction] Strips trailing slash and appends query params'
+    code: |-
+      const mockData = {
+        projectUrl: 'https://my-project.supabase.co/', // Trailing slash included
+        apiKey: 'mock-api-key',
+        tableName: 'orders',
+        queryConditions: [
+          { key: 'status', value: 'eq.completed' },
+          { key: 'total', value: 'gt.100' }
+        ]
+      };
+
+      let requestedUrl = '';
+      mock('sendHttpRequest', (url, options) => {
+        requestedUrl = url;
+        return Promise.create((resolve) => resolve({ statusCode: 200, body: '[]' }));
+      });
+
+      runCode(mockData).then(() => {
+        assertThat(requestedUrl).isEqualTo('https://my-project.supabase.co/rest/v1/orders?status=eq.completed&total=gt.100');
+      });
+  - name: '[Success] Successfully parses JSON and extracts document path'
+    code: |-
+      const mockData = {
+        projectUrl: 'https://my-project.supabase.co',
+        apiKey: 'mock-api-key',
+        tableName: 'users',
+        documentPath: '0.name', // Extract 'name' from the first object
+        storeResponse: false
+      };
+
+      mock('sendHttpRequest', (url, options) => {
+        return Promise.create((resolve) => resolve({
+          statusCode: 200,
+          body: JSON.stringify([{ id: 1, name: 'Alice' }, { id: 2, name: 'Bob' }])
+        }));
+      });
+
+      runCode(mockData).then((result) => {
+        assertThat(result).isEqualTo('Alice');
+      });
+  - name: '[Failure] Silently returns undefined if API returns invalid JSON'
+    code: |-
+      const mockData = {
+        projectUrl: 'https://my-project.supabase.co',
+        apiKey: 'mock-api-key',
+        tableName: 'users',
+        documentPath: '0.name'
+      };
+
+      mock('sendHttpRequest', () => {
+        return Promise.create((resolve) => resolve({
+          statusCode: 502,
+          body: '<html>Bad Gateway</html>' // Not valid JSON
+        }));
+      });
+
+      runCode(mockData).then((result) => {
+        assertThat(result).isUndefined();
+      });
+  - name: '[Guard Clause] Exits early if referer is GTM domain'
+    code: |
+      const mockData = {
+        projectUrl: 'https://my-project.supabase.co',
+        apiKey: 'mock-api-key',
+        tableName: 'users'
+      };
+
+      mock('getRequestHeader', (header) => {
+        if (header === 'referer') return 'https://gtm-msr.appspot.com/render';
+        return undefined;
+      });
+
+      const result = runCode(mockData);
+
+      assertApi('sendHttpRequest').wasNotCalled();
+      assertThat(result).isUndefined();

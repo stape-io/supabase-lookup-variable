@@ -564,4 +564,7 @@ ___NOTES___
 
 Created on 19/10/2023, 14:06:55
 
-
+2026-04-27 Change Notes:
+ - Bump the template to Stape Standards
+ - Major code refactor, fix pitfalls, add failsafes
+ - Add tests.
