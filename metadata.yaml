@@ -1,5 +1,8 @@
-homepage: "https://stape.io/"
+homepage: 'https://stape.io/'
+documentation: 'https://github.com/stape-io/supabase-lookup-variable'
 versions:
+  - sha: 9e3e51b0bd6ed771db7ca0add81e7479e9db3163
+    changeNotes: Bump to updated standards. Code refactor. Add tests.
   - sha: 78759a35ff7237d8ed85667834a0b26819e69d83
     changeNotes: Added ability to store response.
   - sha: 434eedd60550733edf489aab680e507ea7b00673
