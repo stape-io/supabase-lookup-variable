@@ -9,3 +9,6 @@
 ## Open Source
 
 Supabase Lookup Variable for Google Tag Manager is developing and maintained by [Stape Team](https://stape.io/) under the Apache 2.0 license.
+
+### GTM Gallery Status
+🟢 [Listed](https://tagmanager.google.com/gallery/#/owners/stape-io/templates/supabase-lookup-variable)
