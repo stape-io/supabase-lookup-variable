@@ -1,4 +1,12 @@
-﻿___INFO___
+﻿___TERMS_OF_SERVICE___
+
+By creating or modifying this file you agree to Google Tag Manager's Community
+Template Gallery Developer Terms of Service available at
+https://developers.google.com/tag-manager/gallery-tos (or such other URL as
+Google may provide), as modified from time to time.
+
+
+___INFO___
 
 {
   "type": "MACRO",
@@ -6,7 +14,7 @@
   "version": 1,
   "securityGroups": [],
   "displayName": "Supabase Lookup",
-  "description": "Supabase Lookup variable for GTM: Fetch, track, and analyze Supabase data in GTM effortlessly.",
+  "description": "Supabase Lookup variable for GTM: fetch, track, and analyze Supabase data in GTM effortlessly.",
   "containerContexts": [
     "SERVER"
   ]
@@ -19,24 +27,28 @@ ___TEMPLATE_PARAMETERS___
   {
     "type": "TEXT",
     "name": "projectUrl",
-    "displayName": "Project Url",
+    "displayName": "Project URL",
     "simpleValueType": true,
     "valueValidators": [
       {
         "type": "NON_EMPTY"
       }
-    ]
+    ],
+    "valueHint": "https://abcdefnp.supabase.co",
+    "help": "Go to the Search bar in Supabase, and type \"Copy API URL\". Then copy the value."
   },
   {
     "type": "TEXT",
     "name": "apiKey",
-    "displayName": "API Key",
+    "displayName": "Publishable API Key",
     "simpleValueType": true,
     "valueValidators": [
       {
         "type": "NON_EMPTY"
       }
-    ]
+    ],
+    "help": "Go to the Search bar in Supabase, and type \"Copy publishable key\". Then copy the value.",
+    "valueHint": "sb_publishable_0ifVD****"
   },
   {
     "type": "TEXT",
@@ -52,9 +64,10 @@ ___TEMPLATE_PARAMETERS___
   {
     "type": "TEXT",
     "name": "documentPath",
-    "displayName": "Document Path",
+    "displayName": "Extract from Document Path in Response",
     "simpleValueType": true,
-    "help": "Allows for extracting values from response body. For example, using \u003cb\u003e0.email\u003c/b\u003e will return the email field from the first object in the response."
+    "help": "Allows for extracting values from response body.\n\u003cbr/\u003e\nFor example, passing \u003cb\u003e0.email\u003c/b\u003e in this field will return the email field from the first object in the response.",
+    "valueHint": "0.email"
   },
   {
     "type": "CHECKBOX",
@@ -87,7 +100,8 @@ ___TEMPLATE_PARAMETERS___
             "type": "TEXT"
           }
         ],
-        "help": "\u003ca href\u003d\"https://postgrest.org/en/stable/references/api/tables_views.html#horizontal-filtering\"\u003eRead more\u003c/a\u003e"
+        "help": "The Query conditions use \u003ca href\u003d\"https://postgrest.org/en/stable/references/api/tables_views.html#horizontal-filtering\"\u003ePostgreSQL filter operator syntax\u003c/a\u003e. Use the \"Abbreviation\" column as the operators.\n\u003cbr/\u003e\u003cbr/\u003e\nA user-friendly SQL to query condition converter is available \u003ca href\u003d\"https://supabase.com/docs/guides/api/sql-to-rest\"\u003ehere\u003c/a\u003e.\n\u003cbr/\u003e\nSimply add your SQL query and pick the HTTP option.\n\u003cbr/\u003e\nEvery key-value pair that is present in the URL Query String can be added to the Query conditions. Each key-value pair will be a line here. \n\u003cbr/\u003e\u003cbr/\u003e\nUsage example.: if you want to retrieve only the table rows for which the column email\u003d\"foobar@example.com\":\n\u003cbr/\u003e\n\u003cul\u003e\n\u003cli\u003eAdd \"email\" (without quotes) as the Key\u003c/li\u003e\n\u003cli\u003eAdd \"eq.foobar@example.com\" (without quotes) as the Value\u003c/li\u003e\n\u003c/ul\u003e",
+        "displayName": "Query conditions"
       }
     ]
   },
@@ -124,7 +138,6 @@ ___TEMPLATE_PARAMETERS___
 
 ___SANDBOXED_JS_FOR_SERVER___
 
-const createRegex = require('createRegex');
 const encodeUriComponent = require('encodeUriComponent');
 const getAllEventData = require('getAllEventData');
 const getContainerVersion = require('getContainerVersion');
@@ -142,6 +155,7 @@ const templateDataStorage = require('templateDataStorage');
 ==============================================================================*/
 
 const eventData = getAllEventData();
+const API_VERSION = '1';
 
 if (shouldExitEarly(eventData)) return;
 
@@ -152,11 +166,11 @@ Vendor related functions
 ==============================================================================*/
 
 function getUrl() {
-  if (!data.projectUrl) return undefined;
-  const baseUrl = data.projectUrl.replace(createRegex('/$'), '');
-  const url = baseUrl + '/rest/v1/' + enc(data.tableName);
+  if (!data.projectUrl || !data.tableName) return undefined;
+  const baseUrl = data.projectUrl.charAt(data.projectUrl.length - 1) === '/' ? data.projectUrl.slice(0, -1) : data.projectUrl;
+  const url = baseUrl + '/rest/v' + API_VERSION + '/' + enc(data.tableName);
   const params = (data.queryConditions || []).map((item) => enc(item.key) + '=' + enc(item.value)).join('&');
-  return params ? url + '?' + params : url;
+  return url + (params ? '?' + params : '');
 }
 
 function getOptions() {
@@ -170,13 +184,13 @@ function getOptions() {
 
 function lookupSupabase() {
   const url = getUrl();
-  if (!url) return Promise.create((resolve) => resolve('{}'));
+  if (!url) return Promise.create((resolve) => resolve(undefined));
 
   const options = getOptions();
   const cacheKey = data.storeResponse ? sha256Sync(url + JSON.stringify(options)) : '';
   if (data.storeResponse) {
     const cachedValue = templateDataStorage.getItemCopy(cacheKey);
-    if (!!cachedValue) return Promise.create((resolve) => resolve(cachedValue));
+    if (cachedValue) return Promise.create((resolve) => resolve(cachedValue));
   }
 
   log({
@@ -562,9 +576,10 @@ setup: |-
 
 ___NOTES___
 
-Created on 19/10/2023, 14:06:55
-
 2026-04-27 Change Notes:
  - Bump the template to Stape Standards
  - Major code refactor, fix pitfalls, add failsafes
  - Add tests.
+
+Created on 19/10/2023, 14:06:55
+

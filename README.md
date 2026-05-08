@@ -1,4 +1,4 @@
-# Supabase Lookup Variable for Google Tag Manager
+# Supabase Lookup Variable for Google Tag Manager Server-Side
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square)](https://opensource.org/licenses/Apache-2.0)
 
@@ -13,7 +13,7 @@ A Server-Side Google Tag Manager (sGTM) variable template that allows you to fet
 
 ## How to use the Supabase Lookup Variable
 
-1. Download the `template.tpl` file and import it into the **Templates** section of your sGTM container (under Variables).
+1. Go to you your Google Tag Manager Server-Side container and click on **Templates** in the left sidebar. Go to the **Variables** section and click on the **"Search Gallery"** button to create a new variable. Search for **Supabase Lookup** and click on it to add it to your container.
 2. Go to **Variables**, create a new User-Defined Variable, and select the **Supabase Lookup** template.
 3. Configure the following fields:
    - **Project URL:** Your Supabase project URL (e.g., `https://xyz.supabase.co`).
@@ -28,13 +28,7 @@ A Server-Side Google Tag Manager (sGTM) variable template that allows you to fet
 
 ## Open Source
 
-This template is open-source and released under the [MIT License](https://opensource.org/licenses/MIT).
-
-Contributions, bug reports, and feature requests are highly encouraged! Feel free to fork the repository, make your improvements, and submit a pull request.
-
-## Open Source
-
-Supabase Lookup Variable for Google Tag Manager is developing and maintained by [Stape Team](https://stape.io/) under the Apache 2.0 license.
+The **Supabase Lookup Variable for Google Tag Manager Server-Side** is developed and maintained by [Stape Team](https://stape.io/) under the Apache 2.0 license.
 
 ### GTM Gallery Status
 🟢 [Listed](https://tagmanager.google.com/gallery/#/owners/stape-io/templates/supabase-lookup-variable)

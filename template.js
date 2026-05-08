@@ -1,4 +1,3 @@
-const createRegex = require('createRegex');
 const encodeUriComponent = require('encodeUriComponent');
 const getAllEventData = require('getAllEventData');
 const getContainerVersion = require('getContainerVersion');
@@ -16,6 +15,7 @@ const templateDataStorage = require('templateDataStorage');
 ==============================================================================*/
 
 const eventData = getAllEventData();
+const API_VERSION = '1';
 
 if (shouldExitEarly(eventData)) return;
 
@@ -26,11 +26,11 @@ Vendor related functions
 ==============================================================================*/
 
 function getUrl() {
-  if (!data.projectUrl) return undefined;
-  const baseUrl = data.projectUrl.replace(createRegex('/$'), '');
-  const url = baseUrl + '/rest/v1/' + enc(data.tableName);
+  if (!data.projectUrl || !data.tableName) return undefined;
+  const baseUrl = data.projectUrl.charAt(data.projectUrl.length - 1) === '/' ? data.projectUrl.slice(0, -1) : data.projectUrl;
+  const url = baseUrl + '/rest/v' + API_VERSION + '/' + enc(data.tableName);
   const params = (data.queryConditions || []).map((item) => enc(item.key) + '=' + enc(item.value)).join('&');
-  return params ? url + '?' + params : url;
+  return url + (params ? '?' + params : '');
 }
 
 function getOptions() {
@@ -44,13 +44,13 @@ function getOptions() {
 
 function lookupSupabase() {
   const url = getUrl();
-  if (!url) return Promise.create((resolve) => resolve('{}'));
+  if (!url) return Promise.create((resolve) => resolve(undefined));
 
   const options = getOptions();
   const cacheKey = data.storeResponse ? sha256Sync(url + JSON.stringify(options)) : '';
   if (data.storeResponse) {
     const cachedValue = templateDataStorage.getItemCopy(cacheKey);
-    if (!!cachedValue) return Promise.create((resolve) => resolve(cachedValue));
+    if (cachedValue) return Promise.create((resolve) => resolve(cachedValue));
   }
 
   log({
