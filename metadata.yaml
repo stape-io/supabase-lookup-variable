@@ -1,6 +1,8 @@
 homepage: 'https://stape.io/'
 documentation: 'https://github.com/stape-io/supabase-lookup-variable'
 versions:
+  - sha: 2f20d6ee85818399105ee0e90c608a60dd7d7adc
+    changeNotes: Console logging removal.
   - sha: be1650a9d0364b010f4793ef243a54b76643cdcd
     changeNotes: Bump to updated standards. Code refactor. Add tests.
   - sha: 78759a35ff7237d8ed85667834a0b26819e69d83
